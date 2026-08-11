@@ -13,3 +13,6 @@ CLIP_CENTROID_AI   = CALIBRATION_DIR / "clip_centroid_ai.npy"
 
 # HuggingFace model id for the pre-trained classifier
 HF_CLASSIFIER_MODEL = "Organika/sdxl-detector"
+
+# Frequency detector calibration
+FREQUENCY_CALIBRATION = CALIBRATION_DIR / "frequency_calibration.npz"
