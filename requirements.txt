@@ -1,0 +1,29 @@
+# AI Image Authenticity Scanner — pinned dependencies
+# Versions are pinned to major.minor.patch for reproducible CI.
+# Apple Silicon users: install torch separately before pip install -e .
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Core image handling
+Pillow==10.3.0
+
+# Frequency analysis
+scipy==1.13.0
+numpy==1.26.4
+
+# CLIP detector (pip-installable, no git deps, supports ViT-B/32)
+torch==2.3.0
+open-clip-torch==2.24.0
+
+# HuggingFace classifier (Organika/sdxl-detector)
+transformers==4.41.0
+
+# API
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# UI
+gradio==4.36.1
+
+# HTTP (URL-based image fetch)
+httpx==0.27.0
