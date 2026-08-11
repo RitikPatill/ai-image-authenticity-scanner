@@ -9,18 +9,19 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 | Milestone | Scope | State |
 |-----------|-------|-------|
 | M1 — Scaffold | Package layout, `config.py`, pinned `requirements.txt`, `calibration/` dir, MIT license | **Done** |
-| M2 — Detectors | Frequency fingerprint, CLIP drift, HuggingFace classifier implementations | Planned |
+| M2 — Detectors | Frequency fingerprint detector (`detectors/frequency.py`), bundled calibration, CLI build script | **Done** |
 | M3 — API | FastAPI `/score` endpoint, file-upload and URL modes | Planned |
 | M4 — CLI & UI | Batch CLI scorer, Gradio browser interface | Planned |
 | M5 — Calibration | Generate and bundle `clip_centroid_real.npy` / `clip_centroid_ai.npy` | Planned |
 
-### What works now (M1)
+### What works now (M2)
 
 - `pip install -e .` resolves the `ai_image_scanner` package from repo root
 - `ai_image_scanner/config.py` — detector weights and HuggingFace model ID are configurable without touching source
-- `calibration/` directory is present; centroid `.npy` files dropped here are picked up automatically once M2 lands
-- `requirements.txt` has all runtime dependencies pinned to exact versions for reproducible installs
-- `ai_image_scanner/detectors/`, `ai_image_scanner/cli/` — modules are stubbed and importable; implementations ship in M2–M4
+- **`ai_image_scanner/detectors/frequency.py`** — `FrequencyDetector` class and `score_image()` convenience function; computes a 2D DCT ring-power spectrum and returns a 0–1 AI-probability score
+- `calibration/frequency_calibration.npz` — bundled calibration statistics (no download needed)
+- `scripts/build_frequency_calibration.py` — regenerate calibration from images in `calibration/samples/{real,ai}/`; auto-generates synthetic stand-ins when the folders are empty
+- `tests/test_frequency.py` — 6 unit tests; run with `pytest tests/test_frequency.py -v`
 
 ## Planned features
 
@@ -84,7 +85,7 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 
 ```bash
 # 1. Clone and install (editable mode so imports resolve from repo root)
-#    Works today — M1 is complete.
+#    Works today — M1 and M2 are complete.
 git clone <repo-url>
 cd ai-image-authenticity-scanner
 pip install -e .
@@ -141,7 +142,7 @@ curl -X POST http://localhost:8000/score \
 ## Roadmap
 
 - [x] M1 — repo scaffold, package layout, `config.py`, pinned deps
-- [ ] M2 — implement frequency fingerprint, CLIP drift, and HuggingFace classifier detectors
+- [x] M2 — frequency-domain detector (`FrequencyDetector`), bundled calibration, unit tests
 - [ ] M3 — FastAPI server with `/score` endpoint (file upload + URL)
 - [ ] M4 — Gradio UI and batch CLI scorer
 - [ ] M5 — generate and bundle CLIP calibration centroids; offline inference end-to-end
