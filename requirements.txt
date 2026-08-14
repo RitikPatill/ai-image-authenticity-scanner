@@ -27,3 +27,6 @@ gradio==4.36.1
 
 # HTTP (URL-based image fetch)
 httpx==0.27.0
+
+# Testing
+pytest==8.2.1

@@ -11,10 +11,10 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 | M1 — Scaffold | Package layout, `config.py`, pinned `requirements.txt`, `calibration/` dir, MIT license | **Done** |
 | M2 — Detectors | Frequency fingerprint detector (`detectors/frequency.py`), bundled calibration, CLI build script | **Done** |
 | M3 — CLIP + Classifier + Ensemble | CLIP drift detector, HF classifier, `ensemble.py` combining all three signals | **Done** |
-| M4 — API | FastAPI `/score` endpoint, file-upload and URL modes | Planned |
-| M5 — CLI & UI | Batch CLI scorer, Gradio browser interface | Planned |
+| M4 — API + CLI | FastAPI `/detect` endpoints (file upload + URL), batch CLI scorer | **Done** |
+| M5 — UI | Gradio browser interface | Planned |
 
-### What works now (M3)
+### What works now (M4)
 
 - `pip install -e .` resolves the `ai_image_scanner` package from repo root
 - `ai_image_scanner/config.py` — detector weights and HuggingFace model ID are configurable without touching source
@@ -27,6 +27,9 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 - `scripts/build_clip_calibration.py` — build CLIP centroids from synthetic images (run once before first use)
 - `tests/test_frequency.py`, `tests/test_hf_classifier.py`, `tests/test_ensemble.py` — run without network access
 - `tests/test_clip_drift.py` — marked `@pytest.mark.slow`; downloads CLIP weights once (~350 MB) then runs offline
+- **`ai_image_scanner/api.py`** — FastAPI app; `POST /detect` (file upload) and `GET /detect?url=...` return JSON with `score`, `verdict`, `signals`, `processing_time_ms`
+- **`ai_image_scanner/cli/batch.py`** — batch folder scanner; writes a CSV report with per-image scores
+- `tests/test_api.py` — 6 integration tests (all detectors mocked; no GPU or calibration files needed)
 
 #### Build CLIP calibration (one-time setup)
 
@@ -37,8 +40,7 @@ python scripts/build_clip_calibration.py
 
 ## Planned features
 
-- **REST API + Gradio UI** — integrate via HTTP or use the browser interface
-- **Batch CLI** — score an entire folder in one command
+- **Gradio UI** — browser interface for interactive single-image scoring
 - **Self-hosted** — runs entirely on your machine; no data leaves your network
 
 ## Architecture
@@ -94,32 +96,30 @@ python scripts/build_clip_calibration.py
 
 ```bash
 # 1. Clone and install (editable mode so imports resolve from repo root)
-#    Works today — M1 and M2 are complete.
+#    M1–M4 complete: detectors, ensemble, API, and batch CLI all work.
 git clone <repo-url>
 cd ai-image-authenticity-scanner
 pip install -e .
 
-# 2. Start the API server  [requires M4]
-uvicorn app:app --reload
+# 2. Start the API server
+uvicorn ai_image_scanner.api:app --reload
 
-# 3. Launch the Gradio UI  [requires M5]
+# 3. Score a folder of images (writes report.csv)
+python -m ai_image_scanner.cli.batch ./images --output report.csv
+
+# 4. Launch the Gradio UI  [requires M5]
 python -m ai_image_scanner.ui
-
-# 4. Run the CLI on a folder  [requires M5]
-python -m ai_image_scanner.cli score --folder ./images/
 ```
 
 ### API usage
 
 ```bash
 # Score by file upload
-curl -X POST http://localhost:8000/score \
+curl -X POST http://localhost:8000/detect \
   -F "file=@photo.jpg"
 
 # Score by URL
-curl -X POST http://localhost:8000/score \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com/image.png"}'
+curl "http://localhost:8000/detect?url=https://example.com/image.png"
 ```
 
 ### Example response
@@ -132,8 +132,26 @@ curl -X POST http://localhost:8000/score \
     "frequency":     {"score": 0.72},
     "clip_drift":    {"score": 0.91},
     "hf_classifier": {"score": 0.93}
-  }
+  },
+  "processing_time_ms": 312.5
 }
+```
+
+### Batch CLI
+
+```bash
+# Score all images in a folder (add --recursive for subdirectories)
+python -m ai_image_scanner.cli.batch ./images --output results.csv
+# Processed 42 images → results.csv
+```
+
+CSV columns: `filename, score, verdict, frequency_score, clip_drift_score, hf_classifier_score`
+
+### Running tests
+
+```bash
+pytest tests/test_api.py -v   # fast — no model weights needed (all mocked)
+pytest tests/ -v              # full suite (downloads CLIP weights on first run)
 ```
 
 ## Requirements
@@ -152,8 +170,8 @@ curl -X POST http://localhost:8000/score \
 - [x] M1 — repo scaffold, package layout, `config.py`, pinned deps
 - [x] M2 — frequency-domain detector (`FrequencyDetector`), bundled calibration, unit tests
 - [x] M3 — CLIP drift detector, HF classifier, ensemble combiner, full test suite
-- [ ] M4 — FastAPI server with `/score` endpoint (file upload + URL)
-- [ ] M5 — Gradio UI and batch CLI scorer
+- [x] M4 — FastAPI `/detect` endpoint (file upload + URL), batch CLI scorer, integration tests
+- [ ] M5 — Gradio UI
 
 <!-- TODO: add benchmark table (precision / recall on RAISE-1k + DiffusionDB sample) once benchmark run is complete -->
 
