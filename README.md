@@ -10,26 +10,35 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 |-----------|-------|-------|
 | M1 — Scaffold | Package layout, `config.py`, pinned `requirements.txt`, `calibration/` dir, MIT license | **Done** |
 | M2 — Detectors | Frequency fingerprint detector (`detectors/frequency.py`), bundled calibration, CLI build script | **Done** |
-| M3 — API | FastAPI `/score` endpoint, file-upload and URL modes | Planned |
-| M4 — CLI & UI | Batch CLI scorer, Gradio browser interface | Planned |
-| M5 — Calibration | Generate and bundle `clip_centroid_real.npy` / `clip_centroid_ai.npy` | Planned |
+| M3 — CLIP + Classifier + Ensemble | CLIP drift detector, HF classifier, `ensemble.py` combining all three signals | **Done** |
+| M4 — API | FastAPI `/score` endpoint, file-upload and URL modes | Planned |
+| M5 — CLI & UI | Batch CLI scorer, Gradio browser interface | Planned |
 
-### What works now (M2)
+### What works now (M3)
 
 - `pip install -e .` resolves the `ai_image_scanner` package from repo root
 - `ai_image_scanner/config.py` — detector weights and HuggingFace model ID are configurable without touching source
-- **`ai_image_scanner/detectors/frequency.py`** — `FrequencyDetector` class and `score_image()` convenience function; computes a 2D DCT ring-power spectrum and returns a 0–1 AI-probability score
+- **`ai_image_scanner/detectors/frequency.py`** — `FrequencyDetector`; computes a 2D DCT ring-power spectrum and returns a 0–1 AI-probability score
+- **`ai_image_scanner/detectors/clip_drift.py`** — `CLIPDriftDetector`; embeds images with `openai/clip-vit-base-patch32` and scores by cosine distance to real/AI centroids
+- **`ai_image_scanner/detectors/hf_classifier.py`** — `HFClassifierDetector`; wraps `Organika/sdxl-detector` via `transformers.pipeline` with lazy loading
+- **`ai_image_scanner/ensemble.py`** — `score_image()` combines all three detectors into a single weighted score with per-signal breakdown
 - `calibration/frequency_calibration.npz` — bundled calibration statistics (no download needed)
-- `scripts/build_frequency_calibration.py` — regenerate calibration from images in `calibration/samples/{real,ai}/`; auto-generates synthetic stand-ins when the folders are empty
-- `tests/test_frequency.py` — 6 unit tests; run with `pytest tests/test_frequency.py -v`
+- `scripts/build_frequency_calibration.py` — regenerate frequency calibration from images or auto-generated synthetic data
+- `scripts/build_clip_calibration.py` — build CLIP centroids from synthetic images (run once before first use)
+- `tests/test_frequency.py`, `tests/test_hf_classifier.py`, `tests/test_ensemble.py` — run without network access
+- `tests/test_clip_drift.py` — marked `@pytest.mark.slow`; downloads CLIP weights once (~350 MB) then runs offline
+
+#### Build CLIP calibration (one-time setup)
+
+```bash
+# Downloads CLIP weights (~350 MB) once, then runs offline
+python scripts/build_clip_calibration.py
+```
 
 ## Planned features
 
-- **Ensemble of three detectors** — frequency fingerprint, CLIP embedding drift, and a pre-trained HuggingFace classifier
-- **Per-signal breakdown** — the response JSON shows exactly why the verdict was reached
 - **REST API + Gradio UI** — integrate via HTTP or use the browser interface
 - **Batch CLI** — score an entire folder in one command
-- **Pre-bundled calibration centroids** — no internet required at runtime after `pip install`
 - **Self-hosted** — runs entirely on your machine; no data leaves your network
 
 ## Architecture
@@ -90,13 +99,13 @@ git clone <repo-url>
 cd ai-image-authenticity-scanner
 pip install -e .
 
-# 2. Start the API server  [requires M3]
+# 2. Start the API server  [requires M4]
 uvicorn app:app --reload
 
-# 3. Launch the Gradio UI  [requires M4]
+# 3. Launch the Gradio UI  [requires M5]
 python -m ai_image_scanner.ui
 
-# 4. Run the CLI on a folder  [requires M4]
+# 4. Run the CLI on a folder  [requires M5]
 python -m ai_image_scanner.cli score --folder ./images/
 ```
 
@@ -120,11 +129,10 @@ curl -X POST http://localhost:8000/score \
   "score": 0.87,
   "verdict": "AI",
   "signals": {
-    "frequency": 0.72,
-    "clip_drift": 0.91,
-    "classifier": 0.93
-  },
-  "model_version": "0.1.0"
+    "frequency":     {"score": 0.72},
+    "clip_drift":    {"score": 0.91},
+    "hf_classifier": {"score": 0.93}
+  }
 }
 ```
 
@@ -143,11 +151,11 @@ curl -X POST http://localhost:8000/score \
 
 - [x] M1 — repo scaffold, package layout, `config.py`, pinned deps
 - [x] M2 — frequency-domain detector (`FrequencyDetector`), bundled calibration, unit tests
-- [ ] M3 — FastAPI server with `/score` endpoint (file upload + URL)
-- [ ] M4 — Gradio UI and batch CLI scorer
-- [ ] M5 — generate and bundle CLIP calibration centroids; offline inference end-to-end
+- [x] M3 — CLIP drift detector, HF classifier, ensemble combiner, full test suite
+- [ ] M4 — FastAPI server with `/score` endpoint (file upload + URL)
+- [ ] M5 — Gradio UI and batch CLI scorer
 
-<!-- TODO: add benchmark table (precision / recall on RAISE-1k + DiffusionDB sample) once M2 is done -->
+<!-- TODO: add benchmark table (precision / recall on RAISE-1k + DiffusionDB sample) once benchmark run is complete -->
 
 ## License
 

@@ -22,6 +22,8 @@ build/
 
 # Calibration files (generated at runtime — bundled .npy files are committed explicitly)
 calibration/*.npy
+!calibration/clip_centroid_real.npy
+!calibration/clip_centroid_ai.npy
 
 # IDE
 .idea/
