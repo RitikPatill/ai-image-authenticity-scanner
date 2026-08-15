@@ -12,9 +12,9 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 | M2 — Detectors | Frequency fingerprint detector (`detectors/frequency.py`), bundled calibration, CLI build script | **Done** |
 | M3 — CLIP + Classifier + Ensemble | CLIP drift detector, HF classifier, `ensemble.py` combining all three signals | **Done** |
 | M4 — API + CLI | FastAPI `/detect` endpoints (file upload + URL), batch CLI scorer | **Done** |
-| M5 — UI | Gradio browser interface | Planned |
+| M5 — UI | Gradio browser interface, sample images, `app.py` | **Done** |
 
-### What works now (M4)
+### What works now (M5)
 
 - `pip install -e .` resolves the `ai_image_scanner` package from repo root
 - `ai_image_scanner/config.py` — detector weights and HuggingFace model ID are configurable without touching source
@@ -30,6 +30,10 @@ With AI-generated images flooding stock libraries, social media, and scientific 
 - **`ai_image_scanner/api.py`** — FastAPI app; `POST /detect` (file upload) and `GET /detect?url=...` return JSON with `score`, `verdict`, `signals`, `processing_time_ms`
 - **`ai_image_scanner/cli/batch.py`** — batch folder scanner; writes a CSV report with per-image scores
 - `tests/test_api.py` — 6 integration tests (all detectors mocked; no GPU or calibration files needed)
+- **`app.py`** — Gradio Blocks UI; drag-and-drop file upload, URL input, score gauge, per-signal bar chart, raw JSON accordion
+- **`assets/samples/`** — 6 bundled synthetic images (3 real/noise, 3 AI/grid) for offline demo
+- `scripts/generate_samples.py` — regenerate the 6 sample images deterministically
+- `tests/test_app.py` — 4 smoke tests for `predict()` and `_make_bar_chart()` (no model weights needed)
 
 #### Build CLIP calibration (one-time setup)
 
@@ -40,15 +44,25 @@ python scripts/build_clip_calibration.py
 
 ## Planned features
 
-- **Gradio UI** — browser interface for interactive single-image scoring
 - **Self-hosted** — runs entirely on your machine; no data leaves your network
+
+## Demo
+
+![Demo — upload an image and get an AI-probability score with per-signal breakdown](assets/demo.gif)
+
+Launch the UI and try the bundled sample images:
+
+```bash
+python app.py
+# → Open http://127.0.0.1:7860 in your browser
+```
 
 ## Architecture
 
 ```
                         ┌─────────────────────────────────────┐
                         │         Image Input                  │
-                        │   (file upload  /  URL  /  CLI)      │
+                        │  Gradio UI  /  REST API  /  CLI      │
                         └──────────────┬──────────────────────┘
                                        │
                ┌───────────────────────┼───────────────────────┐
@@ -107,8 +121,8 @@ uvicorn ai_image_scanner.api:app --reload
 # 3. Score a folder of images (writes report.csv)
 python -m ai_image_scanner.cli.batch ./images --output report.csv
 
-# 4. Launch the Gradio UI  [requires M5]
-python -m ai_image_scanner.ui
+# 4. Launch the Gradio UI
+python app.py
 ```
 
 ### API usage
@@ -150,8 +164,8 @@ CSV columns: `filename, score, verdict, frequency_score, clip_drift_score, hf_cl
 ### Running tests
 
 ```bash
-pytest tests/test_api.py -v   # fast — no model weights needed (all mocked)
-pytest tests/ -v              # full suite (downloads CLIP weights on first run)
+pytest tests/test_api.py tests/test_app.py -v   # fast — no model weights needed (all mocked)
+pytest tests/ -v                                # full suite (downloads CLIP weights on first run)
 ```
 
 ## Requirements
@@ -171,7 +185,7 @@ pytest tests/ -v              # full suite (downloads CLIP weights on first run)
 - [x] M2 — frequency-domain detector (`FrequencyDetector`), bundled calibration, unit tests
 - [x] M3 — CLIP drift detector, HF classifier, ensemble combiner, full test suite
 - [x] M4 — FastAPI `/detect` endpoint (file upload + URL), batch CLI scorer, integration tests
-- [ ] M5 — Gradio UI
+- [x] M5 — Gradio UI (`app.py`), bundled sample images, smoke tests
 
 <!-- TODO: add benchmark table (precision / recall on RAISE-1k + DiffusionDB sample) once benchmark run is complete -->
 
